@@ -9,39 +9,28 @@ app.use(express.json());
 
 // Vercel Serverless Function URL Normalization Middleware
 app.use((req, res, next) => {
-  let targetUrl: string | undefined = undefined;
+  const orig = (req.originalUrl || req.url || '').split('?')[0];
 
-  // 1. Check Vercel/proxy headers
-  const headerForwarded = req.headers['x-forwarded-uri'] || req.headers['x-matched-path'];
-  if (typeof headerForwarded === 'string' && headerForwarded) {
-    targetUrl = headerForwarded.split('?')[0];
-  }
+  // Only normalize requests targeted at /api or rewritten by Vercel
+  const isApiReq =
+    orig.startsWith('/api') ||
+    (req.query && (req.query.path !== undefined || req.query['0'] !== undefined)) ||
+    (typeof req.headers['x-forwarded-uri'] === 'string' && req.headers['x-forwarded-uri'].startsWith('/api'));
 
-  // 2. Check req.originalUrl or req.url
-  if (!targetUrl || targetUrl === '/' || targetUrl === '/api' || targetUrl === '/api/') {
-    if (req.originalUrl && req.originalUrl !== '/' && req.originalUrl !== '/api') {
-      targetUrl = req.originalUrl.split('?')[0];
-    } else if (req.url && req.url !== '/' && req.url !== '/api') {
-      targetUrl = req.url.split('?')[0];
+  if (isApiReq) {
+    let subpath = '';
+    if (req.query && typeof req.query.path === 'string' && req.query.path.trim()) {
+      subpath = req.query.path.trim();
+    } else if (req.query && Array.isArray(req.query.path) && req.query.path.length > 0) {
+      subpath = req.query.path.join('/');
+    } else if (req.query && typeof req.query['0'] === 'string' && req.query['0'].trim()) {
+      subpath = req.query['0'].trim();
+    } else {
+      subpath = orig.replace(/^\/api\/?/, '');
     }
-  }
 
-  // 3. Check req.query params from Vercel catch-all rewrites (e.g. query["0"] or query["path"])
-  if ((!targetUrl || targetUrl === '/' || targetUrl === '/api' || targetUrl === '/api/') && req.query) {
-    if (typeof req.query['0'] === 'string') {
-      targetUrl = '/api/' + req.query['0'];
-    } else if (Array.isArray(req.query.path)) {
-      targetUrl = '/api/' + req.query.path.join('/');
-    } else if (typeof req.query.path === 'string') {
-      targetUrl = '/api/' + req.query.path;
-    }
-  }
-
-  if (targetUrl) {
-    if (!targetUrl.startsWith('/')) {
-      targetUrl = '/' + targetUrl;
-    }
-    req.url = targetUrl;
+    subpath = subpath.replace(/^\/+/, '');
+    req.url = '/api' + (subpath ? '/' + subpath : '');
   }
 
   next();
@@ -1017,9 +1006,8 @@ apiRouter.post('/reset', (req, res, next) => {
   }
 });
 
-// Mount API router for both /api prefix and root / (to support Vercel rewrites)
+// Mount API router ONLY for /api prefix
 app.use('/api', apiRouter);
-app.use('/', apiRouter);
 
 // Fallback JSON 404 handler for missing API endpoints
 app.use('/api', (req, res) => {

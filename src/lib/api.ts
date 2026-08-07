@@ -496,13 +496,14 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
   }
 
   if (cleanUrl.endsWith('/api/pos')) {
-    const { category, item, customer, amount, paymentMethod, staff } = body;
-    const itemName = item || category || 'General Item';
+    const { category, item, customer, amount, paymentMethod, staff, itemName, qty } = body;
+    const name = itemName || item || category || 'General Item';
+    const qtyStr = qty ? ` (x${qty})` : '';
     const custName = customer ? ` - ${customer}` : '';
     store.sales.unshift({
       timestamp: nowISO,
-      category: 'POS',
-      customer: `${itemName}${custName}`,
+      category: 'POS/Sauna',
+      customer: `${name}${qtyStr}${custName}`,
       paymentMethod: paymentMethod || 'Cash',
       amount: Number(amount) || 0,
       staff: staff || 'Duty Staff'
@@ -696,7 +697,19 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
   return getClientDashboardData(dateParam);
 }
 
+let isClientOnlyMode = typeof window !== 'undefined' && (
+  sessionStorage.getItem('gym_client_only') === 'true' ||
+  window.location.hostname.includes('netlify.app') ||
+  window.location.hostname.includes('github.io') ||
+  window.location.hostname.includes('surge.sh') ||
+  window.location.hostname.includes('vercel.app')
+);
+
 export async function apiFetch<T = any>(url: string, options?: RequestInit): Promise<T> {
+  if (isClientOnlyMode) {
+    return handleClientFallbackRequest(url, options) as T;
+  }
+
   try {
     const res = await fetch(url, options);
     const contentType = res.headers.get('content-type') || '';
@@ -706,7 +719,8 @@ export async function apiFetch<T = any>(url: string, options?: RequestInit): Pro
       try {
         return await res.json();
       } catch (e) {
-        console.warn(`[Client Store Fallback] JSON parse failed for '${url}'. Executing in client localStorage.`);
+        isClientOnlyMode = true;
+        if (typeof window !== 'undefined') sessionStorage.setItem('gym_client_only', 'true');
         return handleClientFallbackRequest(url, options) as T;
       }
     }
@@ -716,7 +730,8 @@ export async function apiFetch<T = any>(url: string, options?: RequestInit): Pro
       try {
         return JSON.parse(text);
       } catch {
-        console.warn(`[Client Store Fallback] Endpoint '${url}' returned non-JSON text/HTML. Executing in client localStorage.`);
+        isClientOnlyMode = true;
+        if (typeof window !== 'undefined') sessionStorage.setItem('gym_client_only', 'true');
         return handleClientFallbackRequest(url, options) as T;
       }
     }
@@ -749,7 +764,8 @@ export async function apiFetch<T = any>(url: string, options?: RequestInit): Pro
         }
       }
 
-      console.warn(`[Client Store Fallback] Endpoint '${url}' returned HTTP status ${res.status}. Executing in client localStorage.`);
+      isClientOnlyMode = true;
+      if (typeof window !== 'undefined') sessionStorage.setItem('gym_client_only', 'true');
       return handleClientFallbackRequest(url, options) as T;
     }
 
@@ -764,7 +780,8 @@ export async function apiFetch<T = any>(url: string, options?: RequestInit): Pro
     ) {
       throw err;
     }
-    console.warn(`[Client Store Fallback] Network or endpoint error calling '${url}'. Executing in client localStorage.`, err);
+    isClientOnlyMode = true;
+    if (typeof window !== 'undefined') sessionStorage.setItem('gym_client_only', 'true');
     return handleClientFallbackRequest(url, options) as T;
   }
 }

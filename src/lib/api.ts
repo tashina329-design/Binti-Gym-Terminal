@@ -702,7 +702,11 @@ let isClientOnlyMode = typeof window !== 'undefined' && (
   window.location.hostname.includes('netlify.app') ||
   window.location.hostname.includes('github.io') ||
   window.location.hostname.includes('surge.sh') ||
-  window.location.hostname.includes('vercel.app')
+  window.location.hostname.includes('vercel.app') ||
+  window.location.hostname.includes('render.com') ||
+  window.location.hostname.includes('firebaseapp.com') ||
+  window.location.hostname.includes('web.app') ||
+  (!window.location.hostname.includes('run.app') && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
 );
 
 export async function apiFetch<T = any>(url: string, options?: RequestInit): Promise<T> {

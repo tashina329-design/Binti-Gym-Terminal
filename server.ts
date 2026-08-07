@@ -670,7 +670,8 @@ apiRouter.post('/checkin/id', (req, res, next) => {
 // POST /api/walkin
 apiRouter.post('/walkin', (req, res, next) => {
   try {
-    const { name, phone, amount, paymentMethod, staff } = req.body || {};
+    const { name, phone, amount, paymentMethod, staff, viewDate, date } = req.body || {};
+    const targetDate = (req.query.date as string) || viewDate || date;
     const store = loadData();
     const nowISO = new Date().toISOString();
 
@@ -693,7 +694,7 @@ apiRouter.post('/walkin', (req, res, next) => {
     });
 
     saveData(store);
-    res.json(getDashboardData());
+    res.json(getDashboardData(targetDate));
   } catch (err) {
     next(err);
   }
@@ -702,7 +703,8 @@ apiRouter.post('/walkin', (req, res, next) => {
 // POST /api/pos
 apiRouter.post('/pos', (req, res, next) => {
   try {
-    const { itemName, qty, amount, paymentMethod, staff } = req.body || {};
+    const { itemName, qty, amount, paymentMethod, staff, viewDate, date } = req.body || {};
+    const targetDate = (req.query.date as string) || viewDate || date;
     const store = loadData();
     const nowISO = new Date().toISOString();
 
@@ -716,7 +718,7 @@ apiRouter.post('/pos', (req, res, next) => {
     });
 
     saveData(store);
-    res.json(getDashboardData());
+    res.json(getDashboardData(targetDate));
   } catch (err) {
     next(err);
   }
@@ -725,7 +727,8 @@ apiRouter.post('/pos', (req, res, next) => {
 // POST /api/class
 apiRouter.post('/class', (req, res, next) => {
   try {
-    const { className, clientName, amount, paymentMethod, staff } = req.body || {};
+    const { className, clientName, amount, paymentMethod, staff, viewDate, date } = req.body || {};
+    const targetDate = (req.query.date as string) || viewDate || date;
     const store = loadData();
     const nowISO = new Date().toISOString();
 
@@ -748,7 +751,7 @@ apiRouter.post('/class', (req, res, next) => {
     });
 
     saveData(store);
-    res.json(getDashboardData());
+    res.json(getDashboardData(targetDate));
   } catch (err) {
     next(err);
   }
@@ -757,7 +760,8 @@ apiRouter.post('/class', (req, res, next) => {
 // POST /api/pt/in
 apiRouter.post('/pt/in', (req, res, next) => {
   try {
-    const { trainerName, clientName, sessions, amount, paymentMethod, staff } = req.body || {};
+    const { trainerName, clientName, sessions, amount, paymentMethod, staff, viewDate, date } = req.body || {};
+    const targetDate = (req.query.date as string) || viewDate || date;
     const store = loadData();
     const nowISO = new Date().toISOString();
 
@@ -777,7 +781,7 @@ apiRouter.post('/pt/in', (req, res, next) => {
     });
 
     saveData(store);
-    res.json(getDashboardData());
+    res.json(getDashboardData(targetDate));
   } catch (err) {
     next(err);
   }
@@ -786,7 +790,8 @@ apiRouter.post('/pt/in', (req, res, next) => {
 // POST /api/pt/out
 apiRouter.post('/pt/out', (req, res, next) => {
   try {
-    const { trainerName, description, amount, paymentMethod, staff } = req.body || {};
+    const { trainerName, description, amount, paymentMethod, staff, viewDate, date } = req.body || {};
+    const targetDate = (req.query.date as string) || viewDate || date;
     const store = loadData();
     const nowISO = new Date().toISOString();
 
@@ -800,7 +805,7 @@ apiRouter.post('/pt/out', (req, res, next) => {
     });
 
     saveData(store);
-    res.json(getDashboardData());
+    res.json(getDashboardData(targetDate));
   } catch (err) {
     next(err);
   }
@@ -809,7 +814,8 @@ apiRouter.post('/pt/out', (req, res, next) => {
 // POST /api/expense
 apiRouter.post('/expense', (req, res, next) => {
   try {
-    const { category, description, amount, paymentMethod, staff } = req.body || {};
+    const { category, description, amount, paymentMethod, staff, viewDate, date } = req.body || {};
+    const targetDate = (req.query.date as string) || viewDate || date;
     const store = loadData();
     const nowISO = new Date().toISOString();
 
@@ -823,7 +829,7 @@ apiRouter.post('/expense', (req, res, next) => {
     });
 
     saveData(store);
-    res.json(getDashboardData());
+    res.json(getDashboardData(targetDate));
   } catch (err) {
     next(err);
   }
@@ -832,7 +838,8 @@ apiRouter.post('/expense', (req, res, next) => {
 // POST /api/members/register
 apiRouter.post('/members/register', (req, res, next) => {
   try {
-    const { name, phone, planType, price, startDate, endDate, paymentMethod, staff } = req.body || {};
+    const { name, phone, planType, price, startDate, endDate, paymentMethod, staff, viewDate, date } = req.body || {};
+    const targetDate = (req.query.date as string) || viewDate || date;
     const store = loadData();
     const nowISO = new Date().toISOString();
     const memberId = 'MEM-' + Math.floor(100000 + Math.random() * 900000);
@@ -859,7 +866,7 @@ apiRouter.post('/members/register', (req, res, next) => {
     });
 
     saveData(store);
-    res.json(getDashboardData());
+    res.json(getDashboardData(targetDate));
   } catch (err) {
     next(err);
   }
@@ -868,7 +875,8 @@ apiRouter.post('/members/register', (req, res, next) => {
 // POST /api/members/renew
 apiRouter.post('/members/renew', (req, res, next) => {
   try {
-    const { memberId, planType, price, paymentMethod, staff } = req.body || {};
+    const { memberId, planType, price, paymentMethod, staff, viewDate, date } = req.body || {};
+    const targetDate = (req.query.date as string) || viewDate || date;
     const store = loadData();
     const nowISO = new Date().toISOString();
 
@@ -898,7 +906,7 @@ apiRouter.post('/members/renew', (req, res, next) => {
     });
 
     saveData(store);
-    res.json(getDashboardData());
+    res.json(getDashboardData(targetDate));
   } catch (err) {
     next(err);
   }

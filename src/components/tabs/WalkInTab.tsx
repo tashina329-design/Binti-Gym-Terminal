@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Footprints } from 'lucide-react';
+import { Footprints, CheckCircle2 } from 'lucide-react';
 import { DashboardData } from '../../types';
 
 interface WalkInTabProps {
@@ -12,21 +12,26 @@ export const WalkInTab: React.FC<WalkInTabProps> = ({ onRecordWalkIn }) => {
   const [amount, setAmount] = useState(4.00);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (amount < 0) return;
 
     setLoading(true);
+    setSuccessMsg(null);
+    const guestName = name.trim() || 'Guest Visitor';
     try {
       await onRecordWalkIn({
-        name: name.trim() || 'Guest Visitor',
+        name: guestName,
         phone: phone.trim() || undefined,
         amount,
         paymentMethod,
       });
+      setSuccessMsg(`Walk-in recorded! ${guestName} checked in ($${amount.toFixed(2)} via ${paymentMethod}).`);
       setName('');
       setPhone('');
+      setTimeout(() => setSuccessMsg(null), 5000);
     } catch (err: any) {
       alert('Failed to record walk-in: ' + (err.message || err));
     } finally {
@@ -35,7 +40,13 @@ export const WalkInTab: React.FC<WalkInTabProps> = ({ onRecordWalkIn }) => {
   };
 
   return (
-    <div className="max-w-xl bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-lg">
+    <div className="max-w-xl bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-lg space-y-4">
+      {successMsg && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-xl flex items-center gap-3 text-emerald-400 font-semibold text-sm animate-fade-in shadow-lg">
+          <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-400" />
+          <span>{successMsg}</span>
+        </div>
+      )}
       <div className="flex items-center gap-3 mb-4">
         <div className="w-9 h-9 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
           <Footprints className="w-5 h-5" />

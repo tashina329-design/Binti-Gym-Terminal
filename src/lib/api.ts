@@ -370,7 +370,7 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
     return { success: true, staff: newStaff, registeredStaff: store.registeredStaff };
   }
 
-  if (cleanUrl.endsWith('/api/shift/start')) {
+  if (cleanUrl.endsWith('/api/staff/shift/start') || cleanUrl.endsWith('/api/shift/start')) {
     const { staffName, cashStart, shiftTitle, startingFloat } = body;
     store.activeShift = {
       id: `SHF-${Date.now()}`,
@@ -384,7 +384,7 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
     return { success: true, activeShift: store.activeShift };
   }
 
-  if (cleanUrl.endsWith('/api/shift/end')) {
+  if (cleanUrl.endsWith('/api/staff/shift/end') || cleanUrl.endsWith('/api/shift/end')) {
     const endedShift = store.activeShift;
     store.activeShift = null;
     saveClientStore(store);
@@ -702,44 +702,69 @@ export async function apiFetch<T = any>(url: string, options?: RequestInit): Pro
     const contentType = res.headers.get('content-type') || '';
     const isJson = contentType.includes('application/json');
 
+    if (res.ok && isJson) {
+      try {
+        return await res.json();
+      } catch (e) {
+        console.warn(`[Client Store Fallback] JSON parse failed for '${url}'. Executing in client localStorage.`);
+        return handleClientFallbackRequest(url, options) as T;
+      }
+    }
+
+    if (res.ok && !isJson) {
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch {
+        console.warn(`[Client Store Fallback] Endpoint '${url}' returned non-JSON text/HTML. Executing in client localStorage.`);
+        return handleClientFallbackRequest(url, options) as T;
+      }
+    }
+
     if (!res.ok) {
       if (isJson) {
         try {
           const errorData = await res.json();
-          const errorMessage = errorData.message || errorData.error || `API request failed (${res.status})`;
-          throw new Error(errorMessage);
+          if (errorData && (errorData.message || errorData.error)) {
+            const errorMessage = errorData.message || errorData.error;
+            if (
+              errorMessage.includes('PIN') ||
+              errorMessage.includes('Expired') ||
+              errorMessage.includes('Denied') ||
+              errorMessage.includes('incorrect')
+            ) {
+              throw new Error(errorMessage);
+            }
+          }
         } catch (e: any) {
-          if (e.message && !e.message.includes('API request failed')) throw e;
+          if (
+            e.message &&
+            (e.message.includes('PIN') ||
+              e.message.includes('Expired') ||
+              e.message.includes('Denied') ||
+              e.message.includes('incorrect'))
+          ) {
+            throw e;
+          }
         }
       }
-      
-      const text = await res.text();
-      if (text.includes('<!DOCTYPE') || text.includes('<html') || text.includes('<head')) {
-        console.warn(`[Client Store Fallback] Endpoint '${url}' returned HTML. Executing operation in client localStorage.`);
-        return handleClientFallbackRequest(url, options) as T;
-      }
-      throw new Error(`Server returned ${res.status}: ${text.slice(0, 100)}`);
-    }
 
-    if (!isJson) {
-      const text = await res.text();
-      if (text.includes('<!DOCTYPE') || text.includes('<html') || text.includes('<head')) {
-        console.warn(`[Client Store Fallback] Endpoint '${url}' returned HTML instead of JSON. Executing operation in client localStorage.`);
-        return handleClientFallbackRequest(url, options) as T;
-      }
-      try {
-        return JSON.parse(text);
-      } catch (e) {
-        return handleClientFallbackRequest(url, options) as T;
-      }
+      console.warn(`[Client Store Fallback] Endpoint '${url}' returned HTTP status ${res.status}. Executing in client localStorage.`);
+      return handleClientFallbackRequest(url, options) as T;
     }
 
     return await res.json();
   } catch (err: any) {
-    if (err.message && (err.message.includes('<!DOCTYPE') || err.message.includes('HTML') || err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
-      console.warn(`[Client Store Fallback] Network or HTML error calling '${url}'. Executing in client localStorage.`, err);
-      return handleClientFallbackRequest(url, options) as T;
+    if (
+      err.message &&
+      (err.message.includes('PIN') ||
+        err.message.includes('Expired') ||
+        err.message.includes('Denied') ||
+        err.message.includes('incorrect'))
+    ) {
+      throw err;
     }
-    throw err;
+    console.warn(`[Client Store Fallback] Network or endpoint error calling '${url}'. Executing in client localStorage.`, err);
+    return handleClientFallbackRequest(url, options) as T;
   }
 }

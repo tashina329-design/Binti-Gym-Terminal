@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Zap } from 'lucide-react';
+import { ShoppingBag, Zap, CheckCircle2 } from 'lucide-react';
 import { DashboardData } from '../../types';
 
 interface PosTabProps {
@@ -12,6 +12,7 @@ export const PosTab: React.FC<PosTabProps> = ({ onRecordPOS }) => {
   const [unitPrice, setUnitPrice] = useState(1.00);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const totalCharge = (qty * unitPrice).toFixed(2);
 
@@ -33,6 +34,7 @@ export const PosTab: React.FC<PosTabProps> = ({ onRecordPOS }) => {
     if (!itemName.trim() || qty <= 0 || unitPrice < 0) return;
 
     setLoading(true);
+    setSuccessMsg(null);
     try {
       await onRecordPOS({
         itemName,
@@ -40,8 +42,9 @@ export const PosTab: React.FC<PosTabProps> = ({ onRecordPOS }) => {
         amount: parseFloat(totalCharge),
         paymentMethod,
       });
-      // reset qty
+      setSuccessMsg(`Sale recorded! ${itemName} (x${qty}) - $${totalCharge} (${paymentMethod}) added to income ledger.`);
       setQty(1);
+      setTimeout(() => setSuccessMsg(null), 5000);
     } catch (err: any) {
       alert('Failed to record POS sale: ' + (err.message || err));
     } finally {
@@ -51,6 +54,12 @@ export const PosTab: React.FC<PosTabProps> = ({ onRecordPOS }) => {
 
   return (
     <div className="space-y-6">
+      {successMsg && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-xl flex items-center gap-3 text-emerald-400 font-semibold text-sm animate-fade-in shadow-lg">
+          <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-400" />
+          <span>{successMsg}</span>
+        </div>
+      )}
       {/* Presets */}
       <div>
         <h3 className="text-base font-semibold text-slate-200 mb-3 flex items-center gap-2">

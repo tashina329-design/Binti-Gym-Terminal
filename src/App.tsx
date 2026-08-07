@@ -296,10 +296,10 @@ export default function App() {
 
   // Transaction API calls
   const handleRecordWalkIn = async (data: { name: string; phone?: string; amount: number; paymentMethod: string }) => {
-    const updated: DashboardData = await apiFetch('/api/walkin', {
+    const updated: DashboardData = await apiFetch(`/api/walkin?date=${selectedDate}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, staff: activeShift?.staffName || 'Duty Staff' }),
+      body: JSON.stringify({ ...data, viewDate: selectedDate, staff: activeShift?.staffName || 'Duty Staff' }),
     });
     setDashboardData(updated);
     broadcastLiveSync();
@@ -311,68 +311,61 @@ export default function App() {
         data.name
       );
     }
-
-    setActiveTab('sales');
     return updated;
   };
 
   const handleRecordPOS = async (data: { itemName: string; qty: number; amount: number; paymentMethod: string }) => {
-    const updated: DashboardData = await apiFetch('/api/pos', {
+    const updated: DashboardData = await apiFetch(`/api/pos?date=${selectedDate}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, staff: activeShift?.staffName || 'Duty Staff' }),
+      body: JSON.stringify({ ...data, viewDate: selectedDate, staff: activeShift?.staffName || 'Duty Staff' }),
     });
     setDashboardData(updated);
     broadcastLiveSync();
-    setActiveTab('sales');
     return updated;
   };
 
   const handleRecordClass = async (data: { className: string; clientName: string; amount: number; paymentMethod: string }) => {
-    const updated: DashboardData = await apiFetch('/api/class', {
+    const updated: DashboardData = await apiFetch(`/api/class?date=${selectedDate}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, staff: activeShift?.staffName || 'Duty Staff' }),
+      body: JSON.stringify({ ...data, viewDate: selectedDate, staff: activeShift?.staffName || 'Duty Staff' }),
     });
     setDashboardData(updated);
     broadcastLiveSync();
-    setActiveTab('sales');
     return updated;
   };
 
   const handleRecordPTIn = async (data: { trainerName: string; clientName: string; sessions: string; amount: number; paymentMethod: string }) => {
-    const updated: DashboardData = await apiFetch('/api/pt/in', {
+    const updated: DashboardData = await apiFetch(`/api/pt/in?date=${selectedDate}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, staff: activeShift?.staffName || 'Duty Staff' }),
+      body: JSON.stringify({ ...data, viewDate: selectedDate, staff: activeShift?.staffName || 'Duty Staff' }),
     });
     setDashboardData(updated);
     broadcastLiveSync();
-    setActiveTab('sales');
     return updated;
   };
 
   const handleRecordPTOut = async (data: { trainerName: string; description: string; amount: number; paymentMethod: string }) => {
-    const updated: DashboardData = await apiFetch('/api/pt/out', {
+    const updated: DashboardData = await apiFetch(`/api/pt/out?date=${selectedDate}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, staff: activeShift?.staffName || 'Duty Staff' }),
+      body: JSON.stringify({ ...data, viewDate: selectedDate, staff: activeShift?.staffName || 'Duty Staff' }),
     });
     setDashboardData(updated);
     broadcastLiveSync();
-    setActiveTab('sales');
     return updated;
   };
 
   const handleRecordExpense = async (data: { category: string; description: string; amount: number; paymentMethod: string }) => {
-    const updated: DashboardData = await apiFetch('/api/expense', {
+    const updated: DashboardData = await apiFetch(`/api/expense?date=${selectedDate}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, staff: activeShift?.staffName || 'Duty Staff' }),
+      body: JSON.stringify({ ...data, viewDate: selectedDate, staff: activeShift?.staffName || 'Duty Staff' }),
     });
     setDashboardData(updated);
     broadcastLiveSync();
-    setActiveTab('sales');
     return updated;
   };
 
@@ -385,14 +378,13 @@ export default function App() {
     endDate: string;
     paymentMethod: string;
   }) => {
-    const updated: DashboardData = await apiFetch('/api/members/register', {
+    const updated: DashboardData = await apiFetch(`/api/members/register?date=${selectedDate}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, staff: activeShift?.staffName || 'Duty Staff' }),
+      body: JSON.stringify({ ...data, viewDate: selectedDate, staff: activeShift?.staffName || 'Duty Staff' }),
     });
     setDashboardData(updated);
     broadcastLiveSync();
-    setActiveTab('sales');
     return updated;
   };
 
@@ -402,10 +394,10 @@ export default function App() {
     price: number;
     paymentMethod: string;
   }) => {
-    const updated: DashboardData = await apiFetch('/api/members/renew', {
+    const updated: DashboardData = await apiFetch(`/api/members/renew?date=${selectedDate}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, staff: activeShift?.staffName || 'Duty Staff' }),
+      body: JSON.stringify({ ...data, viewDate: selectedDate, staff: activeShift?.staffName || 'Duty Staff' }),
     });
     setDashboardData(updated);
     broadcastLiveSync();

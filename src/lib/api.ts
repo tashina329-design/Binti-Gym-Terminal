@@ -1,42 +1,49 @@
-import { DashboardData } from '../types';
+import { handleClientFallbackRequest } from './clientStore';
 
 export async function apiFetch<T = any>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options);
+  try {
+    const res = await fetch(url, options);
+    const contentType = res.headers.get('content-type') || '';
+    const isJson = contentType.includes('application/json');
 
-  const contentType = res.headers.get('content-type') || '';
-  const isJson = contentType.includes('application/json');
-
-  if (!res.ok) {
-    let errorMessage = `API request failed (${res.status} ${res.statusText})`;
-    if (isJson) {
-      try {
-        const errorData = await res.json();
-        errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch (e) {
-        // Fallback
+    if (!res.ok) {
+      if (isJson) {
+        try {
+          const errorData = await res.json();
+          const errorMessage = errorData.message || errorData.error || `API request failed (${res.status})`;
+          throw new Error(errorMessage);
+        } catch (e: any) {
+          if (e.message && !e.message.includes('API request failed')) throw e;
+        }
       }
-    } else {
+      
       const text = await res.text();
-      if (text.includes('The page') || text.includes('<!DOCTYPE') || text.includes('<html')) {
-        errorMessage = `The API endpoint '${url}' returned an HTML page (${res.status}). Ensure the backend server is running or API routes are configured on Vercel.`;
-      } else if (text) {
-        errorMessage = text.slice(0, 150);
+      if (text.includes('<!DOCTYPE') || text.includes('<html') || text.includes('<head')) {
+        console.warn(`[Client Store Fallback] Endpoint '${url}' returned HTML. Executing operation in client localStorage.`);
+        return handleClientFallbackRequest(url, options) as T;
+      }
+      throw new Error(`Server returned ${res.status}: ${text.slice(0, 100)}`);
+    }
+
+    if (!isJson) {
+      const text = await res.text();
+      if (text.includes('<!DOCTYPE') || text.includes('<html') || text.includes('<head')) {
+        console.warn(`[Client Store Fallback] Endpoint '${url}' returned HTML instead of JSON. Executing operation in client localStorage.`);
+        return handleClientFallbackRequest(url, options) as T;
+      }
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        return handleClientFallbackRequest(url, options) as T;
       }
     }
-    throw new Error(errorMessage);
-  }
 
-  if (!isJson) {
-    const text = await res.text();
-    if (text.includes('The page') || text.includes('<!DOCTYPE') || text.includes('<html')) {
-      throw new Error(`The endpoint '${url}' returned HTML instead of JSON. Ensure Vercel serverless API routes or Express backend is active.`);
+    return await res.json();
+  } catch (err: any) {
+    if (err.message && (err.message.includes('<!DOCTYPE') || err.message.includes('HTML') || err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
+      console.warn(`[Client Store Fallback] Network or HTML error calling '${url}'. Executing in client localStorage.`, err);
+      return handleClientFallbackRequest(url, options) as T;
     }
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      throw new Error(`Invalid JSON response from '${url}': ${text.slice(0, 100)}`);
-    }
+    throw err;
   }
-
-  return await res.json();
 }

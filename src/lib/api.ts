@@ -323,7 +323,14 @@ export function getClientDashboardData(dateStr?: string): DashboardData {
 
 export function handleClientFallbackRequest(url: string, options?: RequestInit): any {
   const store = loadClientStore();
-  const body = options?.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : {};
+  let body: any = {};
+  if (options?.body) {
+    try {
+      body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+    } catch {
+      body = {};
+    }
+  }
 
   const cleanUrl = url.split('?')[0];
   const searchParams = new URLSearchParams(url.includes('?') ? url.split('?')[1] : '');
@@ -353,9 +360,9 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
     const { name, pin, phone } = body;
     const newStaff: RegisteredStaff = {
       id: `STF-${Math.floor(100 + Math.random() * 900)}`,
-      name: name.trim(),
+      name: (name || 'Staff').trim(),
       phone: phone || '8000000',
-      pin: pin.trim(),
+      pin: (pin || '123456').trim(),
       registeredAt: nowISO
     };
     store.registeredStaff.push(newStaff);
@@ -384,16 +391,65 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
     return { success: true, endedShift };
   }
 
-  if (cleanUrl.endsWith('/api/checkin')) {
+  if (cleanUrl.endsWith('/api/checkin/phone')) {
+    const { phone } = body;
+    const cleanPhone = String(phone || '').replace(/\D/g, '');
+    if (!cleanPhone) {
+      return { success: false, message: 'Please enter a valid phone number.' };
+    }
+    const matches: any[] = [];
+    for (const m of store.members) {
+      const mPhone = String(m.phone || '').replace(/\D/g, '');
+      if (mPhone && mPhone.includes(cleanPhone)) {
+        const status = getMemberStatus(m.endDate);
+        matches.push({
+          memberId: m.memberId,
+          fullName: m.name,
+          phone: m.phone,
+          plan: m.plan,
+          status
+        });
+      }
+    }
+    if (matches.length === 0) {
+      return { success: false, notFound: true, message: 'Member not found. Check phone number or register as guest.' };
+    }
+    if (matches.length > 1) {
+      return { success: true, multiple: true, members: matches };
+    }
+    const member = store.members.find(m => m.memberId === matches[0].memberId);
+    if (!member) {
+      return { success: false, message: 'Member record error.' };
+    }
+    const status = getMemberStatus(member.endDate);
+    if (status === 'Expired') {
+      return { success: false, message: `Check-In Denied: ${member.name}'s membership has expired.` };
+    }
+    store.attendance.unshift({
+      timestamp: nowISO,
+      memberId: member.memberId,
+      name: member.name,
+      phone: member.phone,
+      plan: member.plan,
+      status
+    });
+    saveClientStore(store);
+    return { success: true, message: `Welcome back, ${member.name}!`, members: [matches[0]] };
+  }
+
+  if (cleanUrl.endsWith('/api/checkin/id') || cleanUrl.endsWith('/api/checkin')) {
     const { memberId, phone } = body;
-    let member = store.members.find(m => String(m.memberId).toUpperCase() === String(memberId).toUpperCase());
+    let member = store.members.find(m => String(m.memberId).toUpperCase() === String(memberId || '').toUpperCase());
     if (!member && phone) {
       member = store.members.find(m => m.phone === phone);
     }
     if (!member) {
-      return { success: false, message: 'Member ID or phone number not found.' };
+      return { success: false, message: 'Member ID or record not found.' };
     }
     const status = getMemberStatus(member.endDate);
+    if (status === 'Expired') {
+      return { success: false, message: `Check-In Denied: ${member.name}'s membership has expired.` };
+    }
     store.attendance.unshift({
       timestamp: nowISO,
       memberId: member.memberId,
@@ -405,6 +461,7 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
     saveClientStore(store);
     return {
       success: true,
+      message: `Welcome back, ${member.name}!`,
       status,
       member: {
         id: member.memberId,
@@ -412,8 +469,7 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
         plan: member.plan,
         endDate: member.endDate,
         status
-      },
-      dashboard: getClientDashboardData(dateParam)
+      }
     };
   }
 
@@ -422,7 +478,7 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
     store.sales.unshift({
       timestamp: nowISO,
       category: 'Walk-In',
-      customer: `${name} (${plan || 'Walk-In Pass'})`,
+      customer: `${name || 'Guest'} (${plan || 'Walk-In Pass'})`,
       paymentMethod: paymentMethod || 'Cash',
       amount: Number(amount) || 0,
       staff: staff || 'Duty Staff'
@@ -480,7 +536,7 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
 
     const newMember: Member = {
       memberId: newMemberId,
-      name,
+      name: name || 'New Member',
       phone: phone || '-',
       plan: plan || 'Standard Monthly',
       startDate: startStr,
@@ -492,7 +548,7 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
     store.sales.unshift({
       timestamp: nowISO,
       category: 'Membership',
-      customer: `${name} (${plan || 'New Member'})`,
+      customer: `${name || 'New Member'} (${plan || 'New Member'})`,
       paymentMethod: paymentMethod || 'Cash',
       amount: Number(price) || 0,
       staff: staff || 'Duty Staff'
@@ -524,13 +580,14 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
     return getClientDashboardData(dateParam);
   }
 
-  if (cleanUrl.endsWith('/api/pt/sale')) {
-    const { clientName, trainer, sessions, amount, paymentMethod, staff } = body;
+  if (cleanUrl.endsWith('/api/pt/in') || cleanUrl.endsWith('/api/pt/sale')) {
+    const { clientName, trainer, sessions, amount, paymentMethod, staff, customer } = body;
     const sessionStr = sessions ? `${sessions} Sessions` : 'Package';
+    const custStr = customer || `Client: ${clientName || 'Client'} | Trainer: ${trainer || 'Trainer'} | ${sessionStr}`;
     store.sales.unshift({
       timestamp: nowISO,
       category: 'Personal Training',
-      customer: `Client: ${clientName} | Trainer: ${trainer} | ${sessionStr}`,
+      customer: custStr,
       paymentMethod: paymentMethod || 'Cash',
       amount: Number(amount) || 0,
       staff: staff || 'Duty Staff'
@@ -539,12 +596,13 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
     return getClientDashboardData(dateParam);
   }
 
-  if (cleanUrl.endsWith('/api/pt/payout')) {
-    const { trainer, amount, paymentMethod, notes, staff } = body;
+  if (cleanUrl.endsWith('/api/pt/out') || cleanUrl.endsWith('/api/pt/payout')) {
+    const { trainer, amount, paymentMethod, notes, staff, description } = body;
+    const desc = description || `Trainer Payout: ${trainer || 'Trainer'}${notes ? ` (${notes})` : ''}`;
     store.expenses.unshift({
       timestamp: nowISO,
       category: 'PT Payout',
-      description: `Trainer Payout: ${trainer}${notes ? ` (${notes})` : ''}`,
+      description: desc,
       paymentMethod: paymentMethod || 'Cash',
       amount: Number(amount) || 0,
       staff: staff || 'Duty Staff'
@@ -553,14 +611,16 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
     return getClientDashboardData(dateParam);
   }
 
-  if (cleanUrl.endsWith('/api/classes/pass')) {
-    const { name, phone, className, price, paymentMethod, staff } = body;
+  if (cleanUrl.endsWith('/api/class') || cleanUrl.endsWith('/api/classes/pass')) {
+    const { name, phone, className, price, amount, paymentMethod, staff, category, customer } = body;
+    const finalAmount = Number(price || amount) || 0;
+    const finalClass = className || customer || category || 'Group Class Pass';
     store.sales.unshift({
       timestamp: nowISO,
       category: 'Classes',
-      customer: `${name} (${className || 'Group Class Pass'})`,
+      customer: `${name || 'Guest'} (${finalClass})`,
       paymentMethod: paymentMethod || 'Cash',
-      amount: Number(price) || 0,
+      amount: finalAmount,
       staff: staff || 'Duty Staff'
     });
     store.attendance.unshift({
@@ -568,7 +628,7 @@ export function handleClientFallbackRequest(url: string, options?: RequestInit):
       memberId: 'GUEST-CLASS',
       name: name || 'Class Attendee',
       phone: phone || '-',
-      plan: className || 'Group Class',
+      plan: finalClass,
       status: 'Active'
     });
     saveClientStore(store);
